@@ -751,6 +751,67 @@ app.post("/api/messages/:id/reply", async (req, res) => {
   
     res.json({ success: true });
   });
+
+
+  const MatchSchema = new mongoose.Schema({
+    rocznik: { type: String, required: true },
+    opponentName: { type: String, required: true },
+    opponentLogo: { type: String },   // URL lub logo rywala
+    date: { type: String, required: true },   // np. "2025-09-01"
+    time: { type: String, required: true },   // np. "18:00"
+    address: { type: String, required: true },
+    createdAt: { type: Date, default: Date.now }
+});
+
+const Match = mongoose.model("Match", MatchSchema, "matches");
+app.post("/api/matches", async (req, res) => {
+    try {
+        const { rocznik, opponentName, opponentLogo, date, time, address } = req.body;
+        if (!rocznik || !opponentName || !date || !time || !address) {
+            return res.status(400).json({ error: "Brak wymaganych danych meczu" });
+        }
+
+        const newMatch = new Match({ rocznik, opponentName, opponentLogo, date, time, address });
+        await newMatch.save();
+
+        res.status(201).json({ message: "✅ Mecz dodany", match: newMatch });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Błąd serwera przy dodawaniu meczu" });
+    }
+});
+
+app.get("/api/matches/rocznik/:rocznik", async (req, res) => {
+    try {
+        const { rocznik } = req.params;
+        const matches = await Match.find({ rocznik }).sort({ date: 1, time: 1 });
+        res.json(matches);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Błąd serwera przy pobieraniu meczów" });
+    }
+});
+app.put("/api/matches/:id", async (req, res) => {
+    try {
+        const updated = await Match.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        if (!updated) return res.status(404).json({ error: "Nie znaleziono meczu" });
+        res.json({ message: "Mecz zaktualizowany", match: updated });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Błąd serwera przy edycji meczu" });
+    }
+});
+app.delete("/api/matches/:id", async (req, res) => {
+    try {
+        const removed = await Match.findByIdAndDelete(req.params.id);
+        if (!removed) return res.status(404).json({ error: "Nie znaleziono meczu" });
+        res.json({ message: "Mecz usunięty", match: removed });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Błąd serwera przy usuwaniu meczu" });
+    }
+});
+
 // 5. Start serwera
 const PORT = process.env.PORT || 5005;
 app.listen(PORT, () => console.log(`🚀 Server działa na porcie ${PORT}`));
